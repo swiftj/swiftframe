@@ -1,0 +1,28 @@
+{
+  "name": "swiftframe",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Samsung Frame TV control: shared TypeScript core, Homebridge plugin, and MCP server",
+  "license": "MIT",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || ^26.0.0"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "check": "npm run typecheck && npm test && npm run build",
+    "pack": "npm run build && npm pack -w homebridge-swiftframe -w swiftframe-mcp --pack-destination ."
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/ws": "^8.18.2",
+    "esbuild": "^0.28.2",
+    "typescript": "^6.0.0",
+    "vitest": "^5.1.1"
+  }
+}

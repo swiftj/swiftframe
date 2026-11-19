@@ -1,0 +1,127 @@
+{
+  "pluginAlias": "SwiftFrame",
+  "pluginType": "platform",
+  "singular": true,
+  "headerDisplay": "Each TV is published as its own accessory. After saving, open the Home app, choose **Add Accessory > More options**, pick the TV and enter the Homebridge PIN. The first time the TV is on, accept the **Homebridge** prompt on its screen.",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "name": {
+        "title": "Platform name",
+        "type": "string",
+        "default": "SwiftFrame"
+      },
+      "tvs": {
+        "title": "TVs",
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "title": "Name",
+              "type": "string",
+              "required": true,
+              "placeholder": "Frame"
+            },
+            "ip": {
+              "title": "IP address",
+              "type": "string",
+              "required": true,
+              "format": "ipv4",
+              "description": "Reserve a fixed address for the TV on your router so this never changes."
+            },
+            "mac": {
+              "title": "MAC address",
+              "type": "string",
+              "placeholder": "AA:BB:CC:DD:EE:FF",
+              "description": "Needed to wake the TV when it is fully off. Changing it later makes Home treat the TV as a new accessory."
+            },
+            "tileMode": {
+              "title": "TV tile power button",
+              "type": "string",
+              "default": "art",
+              "oneOf": [
+                { "title": "Off = Art Mode, On = TV", "enum": ["art"] },
+                { "title": "Off = screen off, On = wake", "enum": ["power"] }
+              ]
+            },
+            "artModeSwitch": {
+              "title": "Art Mode switch",
+              "type": "boolean",
+              "default": true
+            },
+            "brightnessLight": {
+              "title": "Art brightness as a dimmable light",
+              "type": "boolean",
+              "default": true
+            },
+            "nextArtworkSwitch": {
+              "title": "Next Artwork button",
+              "type": "boolean",
+              "default": false
+            },
+            "nextArtworkCollection": {
+              "title": "Collection for Next Artwork and Slideshow",
+              "type": "string",
+              "default": "favorites",
+              "oneOf": [
+                { "title": "Favorites", "enum": ["favorites"] },
+                { "title": "My Photos", "enum": ["photos"] },
+                { "title": "Everything", "enum": ["all"] }
+              ]
+            },
+            "slideshowSwitch": {
+              "title": "Slideshow switch",
+              "type": "boolean",
+              "default": false
+            },
+            "slideshowMinutes": {
+              "title": "Slideshow interval (minutes)",
+              "type": "integer",
+              "default": 30,
+              "minimum": 1
+            },
+            "slideshowShuffle": {
+              "title": "Shuffle the slideshow",
+              "type": "boolean",
+              "default": true
+            },
+            "pollInterval": {
+              "title": "State check interval (seconds)",
+              "type": "integer",
+              "default": 15,
+              "minimum": 5
+            },
+            "inputs": {
+              "title": "Inputs",
+              "type": "array",
+              "description": "Shown in the TV tile's input list. HDMI switching needs SmartThings and is not supported yet.",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": { "title": "Name", "type": "string", "required": true },
+                  "type": {
+                    "title": "Type",
+                    "type": "string",
+                    "required": true,
+                    "oneOf": [
+                      { "title": "Art Mode", "enum": ["artmode"] },
+                      { "title": "Specific artwork (content id)", "enum": ["artwork"] },
+                      { "title": "App (Tizen app id)", "enum": ["app"] },
+                      { "title": "Remote key(s), comma separated", "enum": ["key"] }
+                    ]
+                  },
+                  "value": {
+                    "title": "Value",
+                    "type": "string",
+                    "description": "App id, key name such as KEY_HDMI, or artwork content id. Leave empty for Art Mode."
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "name": "homebridge-swiftframe",
+  "displayName": "SwiftFrame",
+  "version": "0.1.0",
+  "description": "Homebridge plugin for Samsung Frame TVs: power, Art Mode, artwork, brightness and slideshow in Apple Home",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "files": ["dist", "config.schema.json"],
+  "keywords": ["homebridge-plugin", "homebridge", "homekit", "samsung", "frame", "tizen", "art mode"],
+  "repository": { "type": "git", "url": "git+https://github.com/swiftj/swiftframe.git", "directory": "packages/homebridge" },
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || ^26.0.0",
+    "homebridge": "^1.8.0 || ^2.0.0"
+  },
+  "dependencies": {
+    "ws": "^8.23.0"
+  },
+  "devDependencies": {
+    "homebridge": "^2.5.0",
+    "swiftframe-core": "*"
+  }
+}

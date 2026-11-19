@@ -1,0 +1,16 @@
+{
+  "name": "swiftframe-core",
+  "version": "0.1.0",
+  "description": "Local-network client for Samsung Frame TVs: power, remote keys, Art Mode and artwork management",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": ["dist"],
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || ^26.0.0"
+  },
+  "dependencies": {
+    "ws": "^8.23.0"
+  }
+}
