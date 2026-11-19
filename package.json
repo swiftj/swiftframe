@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "test": "vitest run",
     "check": "npm run typecheck && npm test && npm run build",
-    "pack": "npm run build && npm pack -w homebridge-swiftframe -w swiftframe-mcp --pack-destination ."
+    "pack": "npm run build && npm pack -w homebridge-swiftframe -w swiftframe-mcp --pack-destination .",
+    "set-version": "npm version --workspaces --include-workspace-root --no-git-tag-version"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

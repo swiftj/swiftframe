@@ -1,0 +1,32 @@
+name: Release
+# Publishing a GitHub Release (tag vX.Y.Z) publishes all three packages to npm.
+on:
+  release:
+    types: [published]
+permissions:
+  contents: read
+  id-token: write # lets npm attach a provenance statement linking the packages to this repo
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm ci
+      - name: Check the tag matches the package version
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          version="v$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$version" ]; then
+            echo "Release tag $TAG does not match package version $version. Run: npm run set-version -- ${TAG#v}" >&2
+            exit 1
+          fi
+      - run: npm run check
+      - run: npm publish --workspaces
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
