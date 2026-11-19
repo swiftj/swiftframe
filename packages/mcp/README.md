@@ -5,8 +5,8 @@ An MCP server that lets Claude, or any MCP client, control a Samsung Frame TV on
 Ask for things like "put the TV in Art Mode", "upload the photos in my Frame folder and show the first one", or
 "dim the art to 3 and rotate my favourites every hour".
 
-> **Early release.** Tested against a simulated 2022 Frame, with limited time on real hardware so far.
-> Please [report problems](https://github.com/swiftj/swiftframe/issues).
+> **Early release.** Pairing and remote control are confirmed on a real 2022 Frame; the artwork tools are so far
+> tested against a simulated one. Please [report problems](https://github.com/swiftj/swiftframe/issues).
 
 ## Requirements
 
@@ -71,6 +71,13 @@ The first command that needs it makes the TV show an Allow prompt for **Claude**
 | `frame_art_settings` | Read or change art brightness and colour tone |
 | `frame_slideshow` | Read or set automatic rotation |
 | `frame_list_mattes`, `frame_set_matte` | List mattes and change an artwork's matte |
+
+## If the TV's art service has stopped
+
+A known fault on Frame TVs leaves the screen showing art while the service that answers art requests is gone.
+`frame_status` reports it. `frame_art_mode` keeps working by pressing the power key, with the state assumed; the
+artwork, brightness and slideshow tools return an explanation. The service returns after about 30 seconds without
+mains power.
 
 ## Safety
 

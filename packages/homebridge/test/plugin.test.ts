@@ -39,7 +39,7 @@ const setup = async (overrides: Partial<TvConfig> = {}, token: string | undefine
   frame = new FrameTV({
     host: '127.0.0.1',
     tokenStore: new MemoryTokenStore(token),
-    transport: tv.transport,
+    transport: { ...tv.transport, readyFallbackMs: 60 },
     pollIntervalMs: 100,
     powerOffHoldMs: 30,
   });
@@ -220,6 +220,27 @@ describe('TV accessory', () => {
   it('pairs by itself when the TV is on and no token is saved', async () => {
     await setup({}, undefined);
     await vi.waitFor(() => expect(frame.isPaired).toBe(true));
+  });
+
+  it('keeps the Art Mode switch and tile working when the TV art service is missing', async () => {
+    tv.artHost = false;
+    await setup();
+    const artSwitch = service(Service.Switch, 'art-mode');
+    const television = service(Service.Television);
+
+    await set(artSwitch, Characteristic.On, true);
+    await vi.waitFor(() => expect(tv.artMode).toBe(true));
+    expect(artSwitch.getCharacteristic(Characteristic.On).value).toBe(true);
+    expect(television.getCharacteristic(Characteristic.Active).value).toBe(0);
+
+    await set(television, Characteristic.Active, 1);
+    await vi.waitFor(() => expect(tv.artMode).toBe(false));
+    expect(artSwitch.getCharacteristic(Characteristic.On).value).toBe(false);
+
+    // Brightness needs the art service, so Home is told it failed.
+    await expect(set(service(Service.Lightbulb, 'art-brightness'), Characteristic.Brightness, 50)).rejects.toBe(
+      api.hap.HAPStatus.SERVICE_COMMUNICATION_FAILURE,
+    );
   });
 
   it('reports an error to Home when a command fails', async () => {

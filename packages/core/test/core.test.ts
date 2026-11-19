@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   ArtClient,
+  ArtHostUnavailableError,
   ArtRequestError,
   ArtServiceUnavailableError,
   FrameTV,
@@ -63,7 +64,7 @@ const frameTv = (options: Record<string, unknown> = {}) => {
   const frame = new FrameTV({
     host: '127.0.0.1',
     tokenStore: new MemoryTokenStore(tv.token),
-    transport: tv.transport,
+    transport: { ...tv.transport, readyFallbackMs: 60 },
     pollIntervalMs: 100,
     ...options,
   });
@@ -232,6 +233,33 @@ describe('art channel', () => {
     expect(error.code).toBe(-9);
   });
 
+  it('fails fast and clearly when the TV has no art service on the channel', async () => {
+    tv.artHost = false;
+    const art = artClient({ readyFallbackMs: 60, responseTimeoutMs: 3000 });
+    const started = Date.now();
+
+    await expect(art.getArtMode()).rejects.toBeInstanceOf(ArtHostUnavailableError);
+    await expect(art.list()).rejects.toThrow(/mains power/);
+
+    expect(Date.now() - started).toBeLessThan(1500);
+    // Nothing was sent into the void, and the circuit breaker was not tripped by it.
+    expect(tv.artRequests).toHaveLength(0);
+    expect(art.available).toBe(true);
+  });
+
+  it('resumes as soon as the art service announces itself', async () => {
+    tv.artHost = false;
+    const art = artClient({ readyFallbackMs: 60 });
+    let ready = false;
+    art.on('hostReady', () => (ready = true));
+
+    await expect(art.getArtMode()).rejects.toBeInstanceOf(ArtHostUnavailableError);
+
+    tv.restoreArtHost();
+    await until(() => ready);
+    expect(await art.getArtMode()).toBe(false);
+  });
+
   it('backs off when the art service stops answering, and recovers', async () => {
     const art = artClient({ responseTimeoutMs: 40 });
     tv.artSilent = true;
@@ -305,6 +333,68 @@ describe('FrameTV', () => {
 
     expect(tv.keys.map((entry) => `${entry.key}:${entry.cmd}`)).toEqual(['KEY_POWER:Press', 'KEY_POWER:Release']);
     expect(frame.state.status).toBe('standby');
+  });
+
+  describe('when the art service is missing', () => {
+    it('switches Art Mode with the power key and tracks the state it set', async () => {
+      tv.artHost = false;
+      const frame = frameTv();
+
+      await frame.setArtMode(true);
+      await until(() => tv.artMode === true);
+      expect(frame.artServiceDown).toBe(true);
+      expect(frame.state).toMatchObject({ status: 'art', artMode: true });
+
+      // Asking for the mode it is already in must not toggle it back.
+      await frame.setArtMode(true);
+      expect(tv.keys).toHaveLength(1);
+
+      await frame.turnOn();
+      await until(() => tv.artMode === false);
+      expect(frame.state.status).toBe('on');
+      expect(tv.keys.map((entry) => entry.key)).toEqual(['KEY_POWER', 'KEY_POWER']);
+    });
+
+    it('keeps the assumed state across polls instead of resetting it', async () => {
+      tv.artHost = false;
+      const frame = frameTv();
+      await frame.start();
+
+      await frame.setArtMode(true);
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      expect(frame.state.status).toBe('art');
+    });
+
+    it('lets the assumed state be corrected without touching the TV', async () => {
+      tv.artHost = false;
+      const frame = frameTv();
+      await frame.refresh();
+
+      frame.assumeArtMode(true);
+      expect(frame.state.status).toBe('art');
+      expect(tv.keys).toHaveLength(0);
+    });
+
+    it('returns to reading the real state when the service comes back', async () => {
+      tv.artHost = false;
+      const frame = frameTv();
+      await frame.start();
+      await until(() => frame.artServiceDown);
+
+      // The assumption has drifted: we think TV, the set is really showing art.
+      tv.artMode = true;
+      tv.restoreArtHost();
+
+      await until(() => !frame.artServiceDown && frame.state.status === 'art');
+      await frame.setArtMode(false);
+      expect(tv.artMode).toBe(false);
+      expect(tv.keys).toHaveLength(0);
+    });
+
+    it('still refuses artwork requests with an explanation', async () => {
+      tv.artHost = false;
+      await expect(frameTv().art.setBrightness(5)).rejects.toBeInstanceOf(ArtHostUnavailableError);
+    });
   });
 
   it('refuses Art Mode on a TV that is not a Frame', async () => {

@@ -74,6 +74,12 @@ export function createServer(tv: FrameTV, options: ServerOptions = {}): McpServe
           status: state.status,
           artMode: state.artMode,
           paired: tv.isPaired,
+          ...(tv.artServiceDown
+            ? {
+                artService:
+                  "not running (a known Frame fault): Art Mode is switched with the power key and its state is assumed, not read; artwork, brightness and slideshow tools will fail until the TV has been without mains power for about 30 seconds",
+              }
+            : {}),
           model: info?.modelName,
           firmware: info?.firmware,
           isFrame: info?.frameSupport,
@@ -115,14 +121,28 @@ export function createServer(tv: FrameTV, options: ServerOptions = {}): McpServe
     'frame_art_mode',
     {
       title: 'Switch Art Mode',
-      description: 'Turn Art Mode on (display artwork) or off (return to regular TV). Wakes the TV first if its screen is off.',
-      inputSchema: { on: z.boolean() },
+      description:
+        'Turn Art Mode on (display artwork) or off (return to regular TV). Wakes the TV first if its screen is off. If frame_status reports the art service is not running, the state is assumed rather than read; when the person says the TV shows something different, call this with correctOnly=true to record what the TV is really showing without sending anything to it.',
+      inputSchema: {
+        on: z.boolean(),
+        correctOnly: z.boolean().optional().describe('Only record that the TV is (on=true) or is not (on=false) in Art Mode; send nothing to the TV'),
+      },
     },
-    ({ on }) =>
+    ({ on, correctOnly }) =>
       run(async () => {
+        if (correctOnly) {
+          tv.assumeArtMode(on);
+          return text(`Recorded that the TV is ${on ? 'in Art Mode' : 'showing regular TV'}.`);
+        }
+
         await paired();
         await tv.setArtMode(on);
-        return text(`Art Mode is ${on ? 'on' : 'off'}.`);
+
+        return text(
+          tv.artServiceDown
+            ? `Pressed the power key to switch Art Mode ${on ? 'on' : 'off'}. The TV's art service is not running, so this could not be confirmed.`
+            : `Art Mode is ${on ? 'on' : 'off'}.`,
+        );
       }),
   );
 

@@ -23,6 +23,8 @@ export interface ChannelOptions {
   pairingTimeoutMs?: number;
   /** How often to ping the TV to detect a dead connection. */
   pingIntervalMs?: number;
+  /** How long to wait for `ms.channel.ready` after `ms.channel.connect` before using the channel anyway. */
+  readyFallbackMs?: number;
 }
 
 export interface ChannelMessage {
@@ -40,7 +42,7 @@ const RECONNECT_MAX_MS = 60_000;
  * Connects on demand, shares a single in-flight connection attempt between callers, detects
  * connections that have silently died, and (when `keepAlive` is on) reconnects with backoff.
  *
- * Emits `open`, `close` and `message` (a parsed {@link ChannelMessage}).
+ * Emits `open`, `close`, `ready` (the TV-side app announced itself) and `message` (a parsed {@link ChannelMessage}).
  */
 export class TvChannel extends EventEmitter {
   private socket: WebSocket | null = null;
@@ -55,6 +57,15 @@ export class TvChannel extends EventEmitter {
 
   /** The id the TV assigned to this client on the current connection. */
   public clientId: string | undefined;
+
+  /** True once the TV-side app has sent `ms.channel.ready` on the current connection. */
+  public ready = false;
+
+  /**
+   * How many TV-side hosts were on the channel when we joined, or undefined if the TV did not say.
+   * Zero with `ready` false means the app that should answer requests is not running.
+   */
+  public hostCount: number | undefined;
 
   constructor(private readonly options: ChannelOptions) {
     super();
@@ -246,22 +257,30 @@ export class TvChannel extends EventEmitter {
         }
 
         if (message.event === 'ms.channel.connect') {
-          const data = (message.data ?? {}) as { token?: string; id?: string };
+          const data = (message.data ?? {}) as { token?: string; id?: string; clients?: Array<{ isHost?: boolean }> };
 
           if (data.token) {
             this.options.tokenStore.set(String(data.token));
           }
 
           this.clientId = data.id ?? this.clientId;
+          this.ready = false;
+          this.hostCount = Array.isArray(data.clients) ? data.clients.filter((client) => client?.isHost).length : undefined;
 
           if (this.options.readyEvent === 'ms.channel.connect') {
             succeed();
           } else {
             // Some firmware never sends ms.channel.ready; don't hang on it.
-            readyFallback = setTimeout(succeed, 2_000);
+            readyFallback = setTimeout(succeed, this.options.readyFallbackMs ?? 2_000);
           }
         } else if (message.event === 'ms.channel.ready') {
+          this.ready = true;
           succeed();
+          this.emit('ready');
+        } else if (message.event === 'ms.channel.clientDisconnect' && (message.data as { isHost?: boolean } | undefined)?.isHost) {
+          // The TV-side app left the channel; requests will go unanswered until it announces itself again.
+          this.ready = false;
+          this.hostCount = 0;
         } else if (message.event === 'ms.channel.unauthorized') {
           fail(
             new UnauthorizedError(
@@ -291,6 +310,8 @@ export class TvChannel extends EventEmitter {
     this.stopPing();
     this.socket = null;
     this.clientId = undefined;
+    this.ready = false;
+    this.hostCount = undefined;
     this.log.debug(`[${this.options.endpoint}] disconnected`);
     this.emit('close');
 

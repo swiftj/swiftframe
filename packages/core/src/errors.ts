@@ -31,6 +31,17 @@ export class ArtServiceUnavailableError extends FrameError {
   }
 }
 
+/**
+ * The TV accepted the connection but its own art service is not on the channel, so nothing can answer.
+ * A known fault on Frame TVs: the screen keeps showing art while the service behind it has stopped.
+ * It comes back after the TV has been without mains power for about 30 seconds.
+ */
+export class ArtHostUnavailableError extends FrameError {
+  constructor() {
+    super("The TV's art service is not running, so artwork and Art Mode settings are unavailable. It returns after the TV has been without mains power for about 30 seconds.");
+  }
+}
+
 /** The request needs a Frame TV and this TV is not one. */
 export class NotAFrameError extends FrameError {
   constructor() {

@@ -2,7 +2,7 @@ import { randomInt, randomUUID } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { TvChannel, type ChannelMessage, type ChannelOptions } from './channel.js';
 import { receiveFiles, sendFile, type D2dConnInfo, type D2dFile } from './d2d.js';
-import { ArtRequestError, ArtServiceUnavailableError, InvalidArgumentError, RequestTimeoutError } from './errors.js';
+import { ArtHostUnavailableError, ArtRequestError, ArtServiceUnavailableError, InvalidArgumentError, RequestTimeoutError } from './errors.js';
 import {
   ArtCategory,
   silentLogger,
@@ -40,7 +40,8 @@ const COOLDOWN_MAX_MS = 240_000;
 /**
  * Art Mode and artwork management over the TV's `com.samsung.art-app` channel.
  *
- * Emits `artMode` (boolean), `standby`, `wakeup`, and `event` (name, payload) for everything the TV pushes.
+ * Emits `artMode` (boolean), `standby`, `wakeup`, `hostReady` (the TV's art service announced itself),
+ * and `event` (name, payload) for everything the TV pushes.
  */
 export class ArtClient extends EventEmitter {
   public readonly channel: TvChannel;
@@ -61,6 +62,10 @@ export class ArtClient extends EventEmitter {
     this.responseTimeoutMs = options.responseTimeoutMs ?? 5_000;
     this.channel = new TvChannel({ ...options, endpoint: 'com.samsung.art-app', readyEvent: 'ms.channel.ready' });
     this.channel.on('message', (message: ChannelMessage) => this.handleMessage(message));
+    this.channel.on('ready', () => {
+      this.resetAvailability();
+      this.emit('hostReady');
+    });
     this.channel.on('close', () => this.failPending(new RequestTimeoutError('The art channel closed before the TV answered')));
   }
 
@@ -369,7 +374,7 @@ export class ArtClient extends EventEmitter {
         this.slideshowName = name;
         return reply;
       } catch (error) {
-        if (error instanceof ArtServiceUnavailableError) {
+        if (error instanceof ArtServiceUnavailableError || error instanceof ArtHostUnavailableError) {
           throw error;
         }
 
@@ -414,6 +419,13 @@ export class ArtClient extends EventEmitter {
     reply.catch(() => {});
 
     try {
+      await this.channel.connect();
+
+      // Connected, but the TV listed no art host and none has announced itself: nothing would answer.
+      if (!this.channel.ready && this.channel.hostCount === 0) {
+        throw new ArtHostUnavailableError();
+      }
+
       await this.channel.send({
         method: 'ms.channel.emit',
         params: {

@@ -1,7 +1,7 @@
 {
   "name": "homebridge-swiftframe",
   "displayName": "SwiftFrame",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Homebridge plugin for Samsung Frame TVs: power, Art Mode, artwork, brightness and slideshow in Apple Home",
   "license": "MIT",
   "type": "module",

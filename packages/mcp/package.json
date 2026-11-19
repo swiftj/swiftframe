@@ -1,6 +1,6 @@
 {
   "name": "swiftframe-mcp",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP server that lets Claude and other AI assistants control a Samsung Frame TV and manage its artwork",
   "license": "MIT",
   "type": "module",
