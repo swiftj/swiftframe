@@ -12,6 +12,10 @@ export interface ServerOptions {
   maxUploadBytes?: number;
 }
 
+/** Replaced with the package version at build time; absent when running from source. */
+declare const __SWIFTFRAME_VERSION__: string | undefined;
+const VERSION = typeof __SWIFTFRAME_VERSION__ === 'string' ? __SWIFTFRAME_VERSION__ : '0.0.0-dev';
+
 const COLLECTIONS = {
   photos: ArtCategory.MY_PHOTOS,
   favorites: ArtCategory.FAVORITES,
@@ -28,7 +32,7 @@ const text = (value: unknown): CallToolResult => ({
 
 /** Build the MCP server for one TV. Separate from the transport so it can be tested in-process. */
 export function createServer(tv: FrameTV, options: ServerOptions = {}): McpServer {
-  const server = new McpServer({ name: 'swiftframe', version: '0.1.0' });
+  const server = new McpServer({ name: 'swiftframe', version: VERSION });
   const maxUploadBytes = options.maxUploadBytes ?? 25 * 1024 * 1024;
 
   /** Turn any failure into a readable tool error instead of a protocol error. */

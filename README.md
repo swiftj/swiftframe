@@ -44,23 +44,27 @@ One repository, three packages that share the same TV code:
 
 ### Install
 
-Until the plugin is published to npm, build a tarball and install that:
+In the Homebridge UI open **Plugins**, search for **SwiftFrame**, and choose **Install**. Or from a terminal:
+
+```sh
+hb-service add homebridge-swiftframe
+```
+
+<details>
+<summary>Installing a build from source instead</summary>
 
 ```sh
 git clone https://github.com/swiftj/swiftframe.git
 cd swiftframe
 npm install
-npm run pack        # writes homebridge-swiftframe-0.1.0.tgz and swiftframe-mcp-0.1.0.tgz
+npm run pack        # writes homebridge-swiftframe-<version>.tgz and swiftframe-mcp-<version>.tgz
 ```
 
-Copy `homebridge-swiftframe-0.1.0.tgz` to the Homebridge machine and install it where your other plugins live.
-On a standard Linux install that is:
+Copy the `homebridge-swiftframe` tarball to the Homebridge machine and install it where your other plugins live.
+On a standard Linux install that is `sudo npm install --prefix /var/lib/homebridge ./homebridge-swiftframe-<version>.tgz`.
+The tarball is self-contained.
 
-```sh
-sudo npm install --prefix /var/lib/homebridge ./homebridge-swiftframe-0.1.0.tgz
-```
-
-Then restart Homebridge. The tarball is self-contained; it does not need `swiftframe-core` installed separately.
+</details>
 
 ### Configure
 
@@ -115,10 +119,10 @@ plugin and from Home first, or you will have two tiles for the same set.
 
 The server runs on a computer on the same network as the TV and talks to Claude over stdio.
 
-Build it as above, then register it. For Claude Code:
+For Claude Code:
 
 ```sh
-claude mcp add swiftframe --env SWIFTFRAME_HOST=192.168.1.50 -- node /path/to/swiftframe/packages/mcp/dist/index.js
+claude mcp add swiftframe --env SWIFTFRAME_HOST=192.168.1.50 -- npx -y swiftframe-mcp
 ```
 
 For Claude Desktop, add to `claude_desktop_config.json`:
@@ -127,8 +131,8 @@ For Claude Desktop, add to `claude_desktop_config.json`:
 {
   "mcpServers": {
     "swiftframe": {
-      "command": "node",
-      "args": ["/path/to/swiftframe/packages/mcp/dist/index.js"],
+      "command": "npx",
+      "args": ["-y", "swiftframe-mcp"],
       "env": {
         "SWIFTFRAME_HOST": "192.168.1.50",
         "SWIFTFRAME_UPLOAD_DIRS": "/Users/you/Pictures/Frame"
@@ -198,6 +202,14 @@ npm test           # tests only
 
 Tests run against [`packages/core/test/mock-tv.ts`](packages/core/test/mock-tv.ts), a small server that imitates
 the TV's HTTP, WebSocket, file-transfer and volume interfaces.
+
+### Releasing
+
+1. `npm run set-version -- 0.2.0`, commit, and merge to `main`.
+2. Publish a GitHub Release tagged `v0.2.0`.
+
+The release workflow runs the checks and publishes all three packages to npm. It needs an npm access token with
+publish rights saved as the repository secret `NPM_TOKEN`.
 
 ## Credits
 

@@ -3,12 +3,14 @@
 // The Homebridge plugin and the MCP server each bundle the shared core into a single file, so
 // either can be installed on its own (from a tarball or from npm) without the core being published.
 import { execFileSync } from 'node:child_process';
-import { chmodSync, rmSync } from 'node:fs';
+import { chmodSync, readFileSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const at = (path) => fileURLToPath(new URL(`../${path}`, import.meta.url));
+
+const { version } = JSON.parse(readFileSync(at('package.json'), 'utf8'));
 
 const shared = {
   bundle: true,
@@ -18,6 +20,7 @@ const shared = {
   sourcemap: true,
   logLevel: 'warning',
   alias: { 'swiftframe-core': at('packages/core/src/index.ts') },
+  define: { __SWIFTFRAME_VERSION__: JSON.stringify(version) },
 };
 
 for (const dir of ['core', 'homebridge', 'mcp']) {

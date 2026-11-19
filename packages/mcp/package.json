@@ -5,10 +5,25 @@
   "license": "MIT",
   "type": "module",
   "main": "dist/index.js",
-  "bin": { "swiftframe-mcp": "dist/index.js" },
-  "files": ["dist"],
-  "keywords": ["mcp", "model-context-protocol", "samsung", "frame", "tizen", "art mode"],
-  "repository": { "type": "git", "url": "git+https://github.com/swiftj/swiftframe.git", "directory": "packages/mcp" },
+  "bin": {
+    "swiftframe-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "samsung",
+    "frame",
+    "tizen",
+    "art mode"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/swiftj/swiftframe.git",
+    "directory": "packages/mcp"
+  },
   "engines": {
     "node": "^22.12.0 || ^24.0.0 || ^26.0.0"
   },
@@ -19,5 +34,14 @@
   },
   "devDependencies": {
     "swiftframe-core": "*"
+  },
+  "author": "swiftj",
+  "homepage": "https://github.com/swiftj/swiftframe#readme",
+  "bugs": {
+    "url": "https://github.com/swiftj/swiftframe/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }
