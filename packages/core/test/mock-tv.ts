@@ -25,6 +25,11 @@ export class MockTv {
 
   /** When true the art service accepts requests and never answers. */
   public artSilent = false;
+  /**
+   * When false the TV behaves like a Frame whose art service has stopped: the channel connects,
+   * lists no host, never becomes ready and ignores every art request.
+   */
+  public artHost = true;
   /** When false the HTTP side stops answering, as if the TV lost power. */
   public online = true;
 
@@ -78,6 +83,15 @@ export class MockTv {
   dropConnections(): void {
     for (const socket of this.allSockets) {
       socket.terminate();
+    }
+  }
+
+  /** Bring the art service back, as a mains power cycle does on a real TV. */
+  restoreArtHost(): void {
+    this.artHost = true;
+
+    for (const socket of this.artSockets) {
+      socket.send(JSON.stringify({ event: 'ms.channel.ready' }));
     }
   }
 
@@ -164,11 +178,17 @@ export class MockTv {
       return;
     }
 
-    socket.send(JSON.stringify({ event: 'ms.channel.connect', data: { id: 'client-1', ...(token ? {} : { token: this.token }) } }));
+    const isArt = endpoint === 'com.samsung.art-app';
+    const clients = [{ id: 'client-1', isHost: false }, ...(isArt && !this.artHost ? [] : [{ id: 'host', isHost: true }])];
 
-    if (endpoint === 'com.samsung.art-app') {
+    socket.send(JSON.stringify({ event: 'ms.channel.connect', data: { id: 'client-1', clients, ...(token ? {} : { token: this.token }) } }));
+
+    if (isArt) {
       this.artSockets.add(socket);
-      socket.send(JSON.stringify({ event: 'ms.channel.ready' }));
+
+      if (this.artHost) {
+        socket.send(JSON.stringify({ event: 'ms.channel.ready' }));
+      }
     }
 
     socket.on('message', (raw) => {
@@ -176,6 +196,15 @@ export class MockTv {
 
       if (message.method === 'ms.remote.control') {
         this.keys.push({ key: message.params.DataOfCmd, cmd: message.params.Cmd });
+
+        // A short power press on a Frame that is on toggles Art Mode.
+        if (message.params.DataOfCmd === 'KEY_POWER' && message.params.Cmd === 'Click' && this.frameSupport && this.powerState === 'on') {
+          this.artMode = !this.artMode;
+
+          if (this.artHost) {
+            this.pushArt({ event: 'art_mode_changed', status: this.artMode ? 'on' : 'off' });
+          }
+        }
       } else if (message.params?.event === 'ed.apps.launch') {
         this.launched.push(message.params.data.appId);
       } else if (message.params?.event === 'art_app_request') {
@@ -187,7 +216,7 @@ export class MockTv {
   private handleArt(socket: WebSocket, request: Record<string, any>): void {
     this.artRequests.push(request.request);
 
-    if (this.artSilent) {
+    if (this.artSilent || !this.artHost) {
       return;
     }
 

@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { ArtClient } from './art.js';
-import { ConnectionError, InvalidArgumentError, NotAFrameError } from './errors.js';
+import { ArtHostUnavailableError, ConnectionError, InvalidArgumentError, NotAFrameError } from './errors.js';
 import { RemoteClient } from './remote.js';
 import { getDeviceInfo } from './rest.js';
 import { MemoryTokenStore } from './token-store.js';
@@ -24,7 +24,7 @@ export interface FrameTVOptions {
   /** How long to hold the power key for a full power-off on a Frame. */
   powerOffHoldMs?: number;
   /** Overrides for testing against something other than a real TV. */
-  transport?: { restPort?: number; wsPort?: number; upnpPort?: number; secure?: boolean };
+  transport?: { restPort?: number; wsPort?: number; upnpPort?: number; secure?: boolean; readyFallbackMs?: number };
 }
 
 const INFO_CACHE_MS = 2_000;
@@ -51,6 +51,7 @@ export class FrameTV extends EventEmitter {
   private pollTimer?: NodeJS.Timeout;
   private refreshing: Promise<FrameState> | null = null;
   private monitoring = false;
+  private artServiceMissing = false;
 
   constructor(private readonly options: FrameTVOptions) {
     super();
@@ -70,6 +71,7 @@ export class FrameTV extends EventEmitter {
       clientName: options.clientName,
       tokenStore: this.tokenStore,
       logger: this.log,
+      readyFallbackMs: options.transport?.readyFallbackMs,
     };
 
     this.remote = new RemoteClient(channel);
@@ -82,6 +84,7 @@ export class FrameTV extends EventEmitter {
       this.art.resetAvailability();
       void this.refresh().catch(() => {});
     });
+    this.art.on('hostReady', () => void this.refresh().catch(() => {}));
   }
 
   public get host(): string {
@@ -94,6 +97,15 @@ export class FrameTV extends EventEmitter {
 
   public get isPaired(): boolean {
     return !!this.tokenStore.get();
+  }
+
+  /**
+   * True while the TV's art service is missing from its own channel (a known Frame fault).
+   * Art Mode then falls back to the power key and is tracked by assumption; artwork, brightness
+   * and slideshow are unavailable until the service returns.
+   */
+  public get artServiceDown(): boolean {
+    return this.artServiceMissing;
   }
 
   /** True once the TV has told us it is a Frame. */
@@ -182,13 +194,38 @@ export class FrameTV extends EventEmitter {
       if (this.art.available) {
         try {
           artMode = await this.art.getArtMode();
+          this.noteArtService(true);
         } catch (error) {
-          this.log.debug(`Could not read Art Mode: ${errorMessage(error)}`);
+          if (error instanceof ArtHostUnavailableError) {
+            this.noteArtService(false);
+            // Nothing can tell us the real mode, so keep what our own commands last set.
+            artMode = this.currentState.artMode ?? false;
+          } else {
+            this.log.debug(`Could not read Art Mode: ${errorMessage(error)}`);
+          }
         }
       }
     }
 
     return this.setState({ status: artMode ? 'art' : 'on', artMode, reachable: true });
+  }
+
+  /** Log once when the art service goes missing and once when it returns. */
+  private noteArtService(present: boolean): void {
+    if (present === !this.artServiceMissing) {
+      return;
+    }
+
+    this.artServiceMissing = !present;
+
+    if (present) {
+      this.log.info("The TV's art service is back. Art Mode state, brightness, slideshow and artwork are available again.");
+    } else {
+      this.log.warn(
+        "The TV's art service is not running (a known Frame fault). Art Mode will be switched with the power key and its state assumed; " +
+          'brightness, slideshow and artwork are unavailable. The service returns after the TV has been without mains power for about 30 seconds.',
+      );
+    }
   }
 
   private applyArtMode(on: boolean): void {
@@ -299,7 +336,31 @@ export class FrameTV extends EventEmitter {
   public async setArtMode(on: boolean): Promise<void> {
     await this.requireFrame();
     await this.wakeScreen();
-    await this.art.setArtMode(on);
+
+    try {
+      await this.art.setArtMode(on);
+      this.noteArtService(true);
+    } catch (error) {
+      if (!(error instanceof ArtHostUnavailableError)) {
+        throw error;
+      }
+
+      // Without the art service the only control left is the power key, which toggles Art Mode on a Frame.
+      this.noteArtService(false);
+
+      if ((this.currentState.artMode ?? false) !== on) {
+        await this.remote.sendKey('KEY_POWER');
+      }
+    }
+
+    this.applyArtMode(on);
+  }
+
+  /**
+   * Tell the client which mode the TV is actually showing. Only needed while the art service is down
+   * and the assumed state has drifted, for example after someone used the physical remote.
+   */
+  public assumeArtMode(on: boolean): void {
     this.applyArtMode(on);
   }
 

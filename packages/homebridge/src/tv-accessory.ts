@@ -447,7 +447,7 @@ export class TvAccessory {
       await this.refreshVolume();
     }
 
-    if (!this.tv.isFrame || !this.tv.isPaired || !this.tv.art.available) {
+    if (!this.tv.isFrame || !this.tv.isPaired || !this.tv.art.available || this.tv.artServiceDown) {
       return;
     }
 

@@ -10,10 +10,10 @@ One repository, three packages that share the same TV code:
 | [`homebridge-swiftframe`](packages/homebridge) | Homebridge plugin that puts the TV in Apple Home |
 | [`swiftframe-mcp`](packages/mcp) | MCP server that lets Claude (or any MCP client) control the TV and manage its artwork |
 
-> **Status: 0.1, not yet run against a real TV.** Everything is tested against a mock TV that speaks the same
-> protocol as a 2022 Frame (art API 4.3.4.0). The protocol behaviour comes from two established open-source
-> projects (see [Credits](#credits)), but expect rough edges on real hardware. Please open an issue with the
-> debug log when something does not match.
+> **Status: early.** Installing, pairing and remote keys are confirmed on a real 2022 Frame (QN55LS03B, firmware
+> 1720). Art Mode reads, brightness, slideshow and artwork upload are so far tested only against a mock TV that
+> speaks the same protocol, because that TV's art service was not running. Please open an issue with the debug log
+> when something does not match.
 
 ## What you get
 
@@ -181,8 +181,13 @@ await tv.start();                      // begin tracking state
   Samsung's cloud API. Locally, `KEY_HDMI` cycles inputs.
 - **Full power-off is best effort on a Frame.** A short power press only toggles Art Mode, so the code sends a long
   press. Some newer firmware ignores that over the network; the command then reports that the TV did not turn off.
-- **The art service can go quiet.** 2022 Frames sometimes stop answering art requests after watching TV. The client
-  detects this, reconnects, and pauses art requests briefly instead of hanging.
+- **The art service can disappear.** A known fault on Frame TVs: the screen keeps showing art, but the service that
+  answers Art Mode requests has stopped. SwiftFrame detects this and says so in the log. The Art Mode switch keeps
+  working by pressing the power key instead, with the state assumed, not read; brightness, slideshow and artwork are
+  unavailable until the service returns, which takes about 30 seconds without mains power. If the assumed state
+  drifts (Home says art, the TV shows TV), press power once on the TV's own remote to bring them back in step.
+- **The art service can go quiet.** Frames sometimes stop answering individual art requests after watching TV. The
+  client detects this, reconnects, and pauses art requests briefly instead of hanging.
 - **Volume is the TV's own speakers.** A soundbar may not follow.
 
 ## Security notes

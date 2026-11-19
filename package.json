@@ -1,6 +1,6 @@
 {
   "name": "swiftframe",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Samsung Frame TV control: shared TypeScript core, Homebridge plugin, and MCP server",
   "license": "MIT",

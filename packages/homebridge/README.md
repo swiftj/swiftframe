@@ -9,8 +9,9 @@ Put a Samsung Frame TV in Apple Home, with real Art Mode control.
 - Inputs for Art Mode, a specific artwork, an app, or a remote-key sequence
 - Connections that detect a dead socket and reconnect on their own
 
-> **Early release.** Tested against a simulated 2022 Frame, with limited time on real hardware so far. If something
-> misbehaves, please [open an issue](https://github.com/swiftj/swiftframe/issues) with the Homebridge debug log.
+> **Early release.** Installing, pairing and remote control are confirmed on a real 2022 Frame; the artwork features
+> are so far tested against a simulated one. If something misbehaves, please
+> [open an issue](https://github.com/swiftj/swiftframe/issues) with the Homebridge debug log.
 
 ## Requirements
 
@@ -78,6 +79,11 @@ The same options in `config.json`:
   and from Home first, or you will have two tiles for the same set.
 - **Full power-off is best effort on a Frame.** A short power press only toggles Art Mode, so the plugin sends a long
   press, which some newer firmware ignores over the network. The default tile mode avoids this by using Art Mode as "off".
+- **"The TV's art service is not running" in the log.** A known fault on Frame TVs: the screen still shows art, but
+  the service behind it has stopped. The Art Mode switch and TV tile keep working by pressing the power key, with
+  the state assumed, not read. Brightness, slideshow and artwork inputs fail until the service returns, which takes
+  about 30 seconds without mains power. If Home and the TV disagree about Art Mode, press power once on the TV's own
+  remote to bring them back in step.
 - **No SmartThings yet**, so there is no direct switch to a specific HDMI input. `KEY_HDMI` cycles through inputs.
 - **Pairing token.** After you accept the prompt, a token is saved in your Homebridge storage folder under
   `swiftframe/`. If the TV ever rejects it, remove "Homebridge" from the TV's Device Connection Manager and restart.

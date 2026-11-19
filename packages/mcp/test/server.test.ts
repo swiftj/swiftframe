@@ -38,7 +38,7 @@ beforeEach(async () => {
   await tv.start();
 
   dir = mkdtempSync(join(tmpdir(), 'swiftframe-'));
-  frame = new FrameTV({ host: '127.0.0.1', tokenStore: new MemoryTokenStore(), transport: tv.transport });
+  frame = new FrameTV({ host: '127.0.0.1', tokenStore: new MemoryTokenStore(), transport: { ...tv.transport, readyFallbackMs: 60 } });
 
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   await createServer(frame, { uploadDirs: [dir] }).connect(serverTransport);
@@ -152,6 +152,28 @@ describe('swiftframe MCP server', () => {
     const power = await call('frame_power', { power: 'on' });
     expect(power.isError).toBe(true);
     expect(power.text.length).toBeGreaterThan(10);
+  });
+
+  it('works around a missing art service and says what is and is not possible', async () => {
+    tv.artHost = false;
+
+    const mode = await call('frame_art_mode', { on: true });
+    expect(mode.isError).toBe(false);
+    expect(mode.text).toMatch(/power key/);
+    await vi.waitFor(() => expect(tv.artMode).toBe(true));
+
+    const status = await call('frame_status');
+    expect(status.json.status).toBe('art');
+    expect(status.json.artService).toMatch(/not running/);
+
+    const list = await call('frame_list_art');
+    expect(list.isError).toBe(true);
+    expect(list.text).toMatch(/mains power/);
+
+    const corrected = await call('frame_art_mode', { on: false, correctOnly: true });
+    expect(corrected.text).toMatch(/Recorded/);
+    expect((await call('frame_status')).json.status).toBe('on');
+    expect(tv.keys).toHaveLength(1);
   });
 
   it('says so when the TV is not a Frame', async () => {
